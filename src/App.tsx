@@ -229,7 +229,7 @@ export default function App() {
     return source;
   };
 
-  const speak = useCallback(async (lineIndex: number, force: boolean = false) => {
+  const speak = useCallback(async (lineIndex: number, force: boolean = false, forceRap: boolean = false) => {
     if (playIntervalRef.current) clearTimeout(playIntervalRef.current);
     
     // Stop all audio
@@ -252,7 +252,7 @@ export default function App() {
       return;
     }
 
-    const speedSuffix = isRapMode ? ':rap' : ((line.character === 'LAWYER PIG' && (lawyerSpeed === 'normal' || lawyerSpeed === 'slow')) ? `:${lawyerSpeed}` : '');
+    const speedSuffix = (isRapMode || forceRap) ? ':rap' : ((line.character === 'LAWYER PIG' && (lawyerSpeed === 'normal' || lawyerSpeed === 'slow')) ? `:${lawyerSpeed}` : '');
     const cacheId = `${line.character}:${line.text}${speedSuffix}`;
     let base64 = audioData[cacheId];
 
@@ -731,6 +731,17 @@ export default function App() {
                         >
                           <RotateCcw size={14} /> Listen Again
                         </button>
+                        {!isRapMode && (
+                          <button 
+                            onClick={() => {
+                              initializeAudio();
+                              speak(currentLineIndex, true, true);
+                            }}
+                            className="flex items-center gap-3 px-4 py-2 bg-brutal-red text-paper border-2 border-ink font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] hover:bg-ink transition-colors"
+                          >
+                            <Zap size={14} className="fill-current" /> Rap Flow
+                          </button>
+                        )}
                       </div>
                     )}
                   </motion.div>
