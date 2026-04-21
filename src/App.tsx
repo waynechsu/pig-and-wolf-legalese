@@ -242,7 +242,24 @@ export default function App() {
       };
 
       source.start();
-      setHighlightWordIndex(-1); 
+      
+      // Karaoke Highlighting
+      const duration = source.buffer?.duration || 0;
+      const words = line.text.split(/\s+/);
+      const startTime = ctx.currentTime;
+
+      const updateHighlight = () => {
+        const elapsed = ctx.currentTime - startTime;
+        if (elapsed < duration) {
+          const progress = elapsed / duration;
+          const wordIndex = Math.floor(progress * words.length);
+          setHighlightWordIndex(wordIndex);
+          requestAnimationFrame(updateHighlight);
+        } else {
+          setHighlightWordIndex(-1);
+        }
+      };
+      requestAnimationFrame(updateHighlight);
     }
   }, [isAudioEnabled, lawyerSpeed, isPlaying, isInteractiveMode, isQuizMode, activeScript]);
 
@@ -336,16 +353,25 @@ export default function App() {
     return words.map((word, i) => {
       const isHighlighted = isCurrent && i === highlightWordIndex;
       return (
-        <span 
+        <motion.span 
           key={i} 
-          className={`transition-all duration-150 inline-block mr-[0.25em] ${
-            isHighlighted 
-            ? 'bg-ink text-paper px-1 rounded-sm scale-110 font-black rotate-[-2deg]' 
-            : ''
+          animate={isHighlighted ? {
+            scale: 1.2,
+            color: '#1A1A1A',
+            backgroundColor: '#FFEB3B', // Bright Yellow
+            rotate: -2
+          } : {
+            scale: 1,
+            color: 'inherit',
+            backgroundColor: 'transparent',
+            rotate: 0
+          }}
+          className={`transition-all duration-150 inline-block mr-[0.25em] px-1 rounded-sm ${
+            isHighlighted ? 'font-black z-20 relative' : ''
           }`}
         >
           {word}
-        </span>
+        </motion.span>
       );
     });
   };
