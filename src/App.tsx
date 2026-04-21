@@ -185,8 +185,14 @@ export default function App() {
       return;
     }
 
-    const cacheId = `${line.character}:${line.text}`;
+    const speedSuffix = (line.character === 'LAWYER PIG' && (lawyerSpeed === 'normal' || lawyerSpeed === 'slow')) ? `:${lawyerSpeed}` : '';
+    const cacheId = `${line.character}:${line.text}${speedSuffix}`;
     let base64 = audioData[cacheId];
+
+    // Fallback to non-suffix key if speed key doesn't exist
+    if (!base64 && speedSuffix) {
+      base64 = audioData[`${line.character}:${line.text}`];
+    }
 
     if (!base64) {
       console.warn("Audio not found in pre-generated data - falling back to system voice");
@@ -206,10 +212,11 @@ export default function App() {
       return;
     }
 
-    if (base64) {
       let rate = 1.0;
       if (line.character === 'LAWYER PIG') {
-        rate = lawyerSpeed === 'superslow' ? 0.45 : lawyerSpeed === 'slow' ? 0.7 : 1.0;
+        // Only use the playbackRate modifier if we don't have a specific speed key
+        // or if we want to further slow down the slow version.
+        rate = lawyerSpeed === 'superslow' ? 0.45 : 1.0;
       } else if (line.character === 'WOLF') {
         rate = 0.8;
       }
