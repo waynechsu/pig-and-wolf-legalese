@@ -212,10 +212,9 @@ export default function App() {
       return;
     }
 
+    if (base64) {
       let rate = 1.0;
       if (line.character === 'LAWYER PIG') {
-        // Only use the playbackRate modifier if we don't have a specific speed key
-        // or if we want to further slow down the slow version.
         rate = lawyerSpeed === 'superslow' ? 0.45 : 1.0;
       } else if (line.character === 'WOLF') {
         rate = 0.8;
@@ -243,8 +242,6 @@ export default function App() {
       };
 
       source.start();
-      // Highlight doesn't come with AI TTS word boundaries in this SDK version easily, 
-      // but we can simulate or just highlight the whole block.
       setHighlightWordIndex(-1); 
     }
   }, [isAudioEnabled, lawyerSpeed, isPlaying, isInteractiveMode, isQuizMode, activeScript]);
