@@ -14,7 +14,8 @@ import {
   VolumeX,
   Rabbit,
   Snail,
-  Star
+  Star,
+  ArrowLeft
 } from 'lucide-react';
 import audioDataRaw from './data/audioData.json';
 
@@ -405,13 +406,27 @@ export default function App() {
                 const nextSpeed = lawyerSpeed === 'normal' ? 'slow' : lawyerSpeed === 'slow' ? 'superslow' : 'normal';
                 setLawyerSpeed(nextSpeed);
               }}
-              className={`flex items-center gap-2 px-6 py-2 border-4 border-ink font-black uppercase text-xs tracking-widest transition-colors shadow-[4px_4px_0_0_#1A1A1A] active:shadow-none active:translate-x-1 active:translate-y-1 ${
+              className={`flex items-center gap-2 px-4 py-2 border-4 border-ink font-black uppercase text-xs tracking-widest transition-colors shadow-[4px_4px_0_0_#1A1A1A] active:shadow-none active:translate-x-1 active:translate-y-1 ${
                 lawyerSpeed !== 'normal' ? 'bg-brutal-teal text-ink' : 'bg-ink text-paper'
               }`}
             >
               {lawyerSpeed === 'superslow' ? <Snail size={18} className="text-brutal-red" /> : lawyerSpeed === 'slow' ? <Snail size={18} /> : <Rabbit size={18} />}
-              {lawyerSpeed === 'superslow' ? 'Lawyer: Step-by-Step' : lawyerSpeed === 'slow' ? 'Lawyer: Slowing Down' : 'Lawyer: Normal Speed'}
+              {lawyerSpeed === 'superslow' ? 'Step-by-Step' : lawyerSpeed === 'slow' ? 'Slow' : 'Normal'}
             </button>
+
+            {currentLineIndex > 0 && (
+              <button 
+                onClick={() => {
+                  initializeAudio();
+                  const prevIndex = currentLineIndex - 1;
+                  setCurrentLineIndex(prevIndex);
+                  speak(prevIndex, true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-ink border-4 border-ink font-black uppercase text-xs tracking-widest transition-colors shadow-[4px_4px_0_0_#1A1A1A] active:shadow-none active:translate-x-1 active:translate-y-1 hover:bg-brutal-teal hover:text-paper"
+              >
+                <ArrowLeft size={18} /> BACK
+              </button>
+            )}
           </div>
         </div>
         <div className="flex flex-row md:flex-col items-center md:items-end gap-3 w-full md:w-auto justify-between md:justify-end border-t-2 md:border-t-0 border-ink/5 pt-3 md:pt-0">
@@ -591,15 +606,30 @@ export default function App() {
                       )}
                     </div>
                     {isCurrent && !isPlaying && (
-                      <button 
-                        onClick={() => {
-                          initializeAudio();
-                          speak(currentLineIndex, true);
-                        }}
-                        className="flex items-center gap-3 px-4 py-2 bg-ink text-paper font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] hover:bg-brutal-teal transition-colors"
-                      >
-                        <RotateCcw size={14} /> Listen Again
-                      </button>
+                      <div className="flex gap-4">
+                        {currentLineIndex > 0 && (
+                          <button 
+                            onClick={() => {
+                              initializeAudio();
+                              const prevIndex = currentLineIndex - 1;
+                              setCurrentLineIndex(prevIndex);
+                              speak(prevIndex, true);
+                            }}
+                            className="flex items-center gap-3 px-4 py-2 bg-white text-ink border-2 border-ink font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] hover:bg-brutal-teal hover:text-paper transition-colors"
+                          >
+                            <ArrowLeft size={14} /> Previous Message
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => {
+                            initializeAudio();
+                            speak(currentLineIndex, true);
+                          }}
+                          className="flex items-center gap-3 px-4 py-2 bg-ink text-paper font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] hover:bg-brutal-teal transition-colors"
+                        >
+                          <RotateCcw size={14} /> Listen Again
+                        </button>
+                      </div>
                     )}
                   </motion.div>
                 );
