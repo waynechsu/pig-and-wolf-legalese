@@ -91,6 +91,7 @@ export default function App() {
   const [highlightWordIndex, setHighlightWordIndex] = useState(-1);
   const [isInteractiveMode, setIsInteractiveMode] = useState(false);
   const [isQuizMode, setIsQuizMode] = useState(false);
+  const [isRapMode, setIsRapMode] = useState(false);
   const [revealedLines, setRevealedLines] = useState<Record<number, boolean>>({});
   const [masteredLines, setMasteredLines] = useState<Record<number, boolean>>({});
   const [quizScript, setQuizScript] = useState<DialogueLine[]>([]);
@@ -98,6 +99,67 @@ export default function App() {
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const beatIntervalRef = useRef<number | null>(null);
+
+  const stopBeat = () => {
+    if (beatIntervalRef.current) {
+      window.clearInterval(beatIntervalRef.current);
+      beatIntervalRef.current = null;
+    }
+  };
+
+  const startBeat = () => {
+    if (!isAudioEnabled || !audioContextRef.current) return;
+    stopBeat();
+    const ctx = audioContextRef.current;
+    let tick = 0;
+    
+    // 90 BPM Noir Beat (Kick, Snare, Hi-hat)
+    beatIntervalRef.current = window.setInterval(() => {
+      const time = ctx.currentTime + 0.1;
+      
+      // Kick on 1 and 3
+      if (tick % 4 === 0) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(150, time);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
+        gain.gain.setValueAtTime(0.3, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + 0.1);
+      }
+      
+      // Snare on 2 and 4
+      if (tick % 4 === 2) {
+        const noise = ctx.createBufferSource();
+        const bufferSize = ctx.sampleRate * 0.1;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        noise.buffer = buffer;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.2, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        noise.connect(gain);
+        gain.connect(ctx.destination);
+        noise.start(time);
+      }
+
+      tick = (tick + 1) % 4;
+    }, 333); // Approx 90 BPM (180 divided by 2/4)
+  };
+
+  useEffect(() => {
+    if (isRapMode && isPlaying) {
+      startBeat();
+    } else {
+      stopBeat();
+    }
+    return () => stopBeat();
+  }, [isRapMode, isPlaying]);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   // iOS/iPadOS requires an explicit user gesture to unlock AudioContext and SpeechSynthesis
@@ -176,6 +238,10 @@ export default function App() {
     }
     window.speechSynthesis.cancel(); 
 
+    if (isRapMode && !isPlaying) {
+      stopBeat();
+    }
+
     if (!isAudioEnabled || lineIndex < 0 || lineIndex >= activeScript.length) return;
 
     const line = activeScript[lineIndex];
@@ -186,7 +252,7 @@ export default function App() {
       return;
     }
 
-    const speedSuffix = (line.character === 'LAWYER PIG' && (lawyerSpeed === 'normal' || lawyerSpeed === 'slow')) ? `:${lawyerSpeed}` : '';
+    const speedSuffix = isRapMode ? ':rap' : ((line.character === 'LAWYER PIG' && (lawyerSpeed === 'normal' || lawyerSpeed === 'slow')) ? `:${lawyerSpeed}` : '');
     const cacheId = `${line.character}:${line.text}${speedSuffix}`;
     let base64 = audioData[cacheId];
 
@@ -340,6 +406,8 @@ export default function App() {
     setRevealedLines({});
     setMasteredLines({});
     setIsQuizMode(false);
+    setIsRapMode(false);
+    setIsInteractiveMode(false);
     setActiveScript(SCRIPT);
     if (playIntervalRef.current) clearTimeout(playIntervalRef.current);
   };
@@ -451,8 +519,14 @@ export default function App() {
         </div>
       </header>
 
-      {/* Transcript Area */}
-      <main className="flex-1 relative overflow-hidden bg-paper/50 flex flex-col">
+      <main className={`flex-1 relative overflow-hidden flex flex-col transition-colors duration-1000 ${
+        isRapMode ? 'bg-zinc-950' : 'bg-paper/50'
+      }`}>
+        {isRapMode && (
+          <div className="absolute inset-0 opacity-20 pointer-events-none">
+             <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] invert" />
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto" id="scroll-container">
           <div 
             className="max-w-5xl mx-auto p-4 sm:p-8 md:p-12 space-y-8 md:space-y-16 py-[40vh]"
@@ -523,6 +597,24 @@ export default function App() {
                     <Zap size={32} className="fill-current" /> RANDOM QUIZ
                   </div>
                 </button>
+
+                <button 
+                  onClick={() => {
+                    initializeAudio();
+                    setIsInteractiveMode(false);
+                    setIsQuizMode(false);
+                    setIsRapMode(true);
+                    setActiveScript(SCRIPT);
+                    setIsPlaying(true);
+                    setCurrentLineIndex(0);
+                  }}
+                  className="font-display text-4xl bg-brutal-red text-paper px-10 py-6 uppercase tracking-wider hover:bg-ink transition-all border-4 border-ink shadow-[12px_12px_0_0_#1A1A1A] active:shadow-none active:translate-x-2 active:translate-y-2 flex flex-col items-center gap-2 group"
+                >
+                  <span className="text-sm font-black tracking-[0.2em] text-brutal-teal">Pig Latin Rap Battle</span>
+                  <div className="flex items-center gap-3">
+                    <Zap size={32} /> RAP MODE
+                  </div>
+                </button>
               </div>
             </motion.div>
           )}
@@ -582,20 +674,26 @@ export default function App() {
                       )}
                     </div>
                     <div className={`font-serif leading-tight max-w-4xl italic transition-all duration-300 ${
-                      isCurrent ? 'text-ink' : 'text-gray-300'
+                      isCurrent ? (isRapMode ? 'text-paper' : 'text-ink') : (isRapMode ? 'text-zinc-800' : 'text-gray-300')
                     }`}>
                       {(isLawyer && (isInteractiveMode || isQuizMode) && !revealedLines[idx]) ? (
                         <div 
                           onClick={() => setRevealedLines(prev => ({ ...prev, [idx]: true }))}
-                          className="group cursor-pointer p-6 border-4 border-dashed border-ink/20 hover:border-brutal-teal hover:bg-brutal-teal/5 transition-all bg-white/50 shadow-[8px_8px_0_0_rgba(0,0,0,0.05)]"
+                          className={`group cursor-pointer p-6 border-4 border-dashed transition-all shadow-[8px_8px_0_0_rgba(0,0,0,0.05)] ${
+                            isRapMode ? 'border-brutal-red/40 bg-zinc-900/50 hover:bg-brutal-red/10' : 'border-ink/20 bg-white/50 hover:border-brutal-teal hover:bg-brutal-teal/5'
+                          }`}
                         >
-                          <div className="flex items-center gap-4 text-ink/60 text-2xl sm:text-4xl font-bold">
-                            <span className="bg-brutal-teal text-paper px-2 py-1 text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0_0_#1A1A1A]">
-                              {isQuizMode ? 'ENGLISH PROMPT' : 'HINT'}
+                          <div className="flex items-center gap-4 text-2xl sm:text-4xl font-bold">
+                            <span className={`px-2 py-1 text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0_0_#1A1A1A] ${
+                              isRapMode ? 'bg-brutal-red text-paper' : 'bg-brutal-teal text-paper'
+                            }`}>
+                              {isQuizMode ? 'ENGLISH PROMPT' : isRapMode ? 'BEAT BOX' : 'HINT'}
                             </span>
-                            <span>({line.translation || "???"})</span>
+                            <span className={isRapMode ? 'text-paper/60' : 'text-ink/60'}>({line.translation || "???"})</span>
                           </div>
-                          <div className="mt-4 flex items-center gap-2 text-xs font-black uppercase text-brutal-teal opacity-0 group-hover:opacity-100 transition-opacity tracking-[0.2em]">
+                          <div className={`mt-4 flex items-center gap-2 text-xs font-black uppercase transition-opacity tracking-[0.2em] opacity-0 group-hover:opacity-100 ${
+                            isRapMode ? 'text-brutal-red' : 'text-brutal-teal'
+                          }`}>
                             <ChevronRight size={16} /> Tap to reveal Pig Latin
                           </div>
                         </div>
@@ -615,7 +713,9 @@ export default function App() {
                               setCurrentLineIndex(prevIndex);
                               speak(prevIndex, true);
                             }}
-                            className="flex items-center gap-3 px-4 py-2 bg-white text-ink border-2 border-ink font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] hover:bg-brutal-teal hover:text-paper transition-colors"
+                            className={`flex items-center gap-3 px-4 py-2 border-2 font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] transition-colors ${
+                              isRapMode ? 'bg-zinc-800 text-paper border-zinc-700 hover:bg-brutal-red' : 'bg-white text-ink border-ink hover:bg-brutal-teal hover:text-paper'
+                            }`}
                           >
                             <ArrowLeft size={14} /> Previous Message
                           </button>
@@ -625,7 +725,9 @@ export default function App() {
                             initializeAudio();
                             speak(currentLineIndex, true);
                           }}
-                          className="flex items-center gap-3 px-4 py-2 bg-ink text-paper font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] hover:bg-brutal-teal transition-colors"
+                          className={`flex items-center gap-3 px-4 py-2 font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#1A1A1A] transition-colors ${
+                            isRapMode ? 'bg-brutal-red text-paper hover:bg-white hover:text-ink' : 'bg-ink text-paper hover:bg-brutal-teal'
+                          }`}
                         >
                           <RotateCcw size={14} /> Listen Again
                         </button>

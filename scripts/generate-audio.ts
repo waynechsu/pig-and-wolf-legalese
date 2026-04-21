@@ -87,31 +87,29 @@ async function generateAudio() {
   
   for (let i = 0; i < SCRIPT.length; i++) {
     const line = SCRIPT[i];
+    const character = line.character;
     
-    if (line.character === 'LAWYER PIG') {
-      // Generate both normal and slow versions for Lawyer Pig
-      const speeds: Array<'normal' | 'slow'> = ['normal', 'slow'];
-      
-      for (const speed of speeds) {
-        const id = `${line.character}:${line.text}:${speed}`;
-        const spokenText = speed === 'slow' ? line.slowTtsText : line.normalTtsText;
-        if (audioData[id]) {
-          console.log(`Skipping line ${i + 1}/${SCRIPT.length}: [${line.character}] (${speed}) (already exists)`);
-          continue;
-        }
-        console.log(`Generating line ${i + 1}/${SCRIPT.length}: [${line.character}] (${speed}) ${line.text}`);
-        
-        await generateSingleAudio(ai, id, spokenText!, VOICE_MAP[line.character as Character], audioData);
-      }
+    // Define versions to generate
+    const versions: Array<{ suffix: string, text: string, mode: 'normal' | 'rap' | 'slow' }> = [];
+    
+    if (character === 'LAWYER PIG') {
+      versions.push({ suffix: ':normal', text: line.normalTtsText!, mode: 'normal' });
+      versions.push({ suffix: ':slow', text: line.slowTtsText!, mode: 'slow' });
+      versions.push({ suffix: ':rap', text: line.normalTtsText!, mode: 'rap' });
     } else {
-      // Single version for others
-      const id = `${line.character}:${line.text}`;
+      versions.push({ suffix: '', text: line.text, mode: 'normal' });
+      versions.push({ suffix: ':rap', text: line.text, mode: 'rap' });
+    }
+
+    for (const v of versions) {
+      const id = `${character}:${line.text}${v.suffix}`;
       if (audioData[id]) {
-        console.log(`Skipping line ${i + 1}/${SCRIPT.length}: [${line.character}] (already exists)`);
+        console.log(`Skipping line ${i + 1}/${SCRIPT.length}: [${character}] (${v.mode}) (already exists)`);
         continue;
       }
-      console.log(`Generating line ${i + 1}/${SCRIPT.length}: [${line.character}] ${line.text}`);
-      await generateSingleAudio(ai, id, line.text, VOICE_MAP[line.character as Character], audioData);
+      
+      console.log(`Generating line ${i + 1}/${SCRIPT.length}: [${character}] (${v.mode}) ${line.text.substring(0, 30)}...`);
+      await generateSingleAudio(ai, id, v.text, VOICE_MAP[character as Character], audioData, v.mode);
     }
   }
 
@@ -119,16 +117,21 @@ async function generateAudio() {
   console.log(`\nSuccessfully generated audio data and saved to ${outputPath}`);
 }
 
-async function generateSingleAudio(ai: any, id: string, text: string, voice: string, audioData: Record<string, string>) {
+async function generateSingleAudio(ai: any, id: string, text: string, voice: string, audioData: Record<string, string>, mode: 'normal' | 'rap' | 'slow' = 'normal') {
   let retries = 0;
   const maxRetries = 5;
   let success = false;
 
   while (retries < maxRetries && !success) {
     try {
+      let promptText = text;
+      if (mode === 'rap') {
+        promptText = `You are a professional rapper. Perform the following text STRICTLY WORD-FOR-WORD. Do not add any extra words, filler, ad-libs, or "yeahs". Use a rhythmic hip-hop flow, emphasizing the syllables heavily to match a 90bpm beat. The text is: "${text}"`;
+      }
+
       const response = await ai.models.generateContent({
         model: 'gemini-3.1-flash-tts-preview',
-        contents: [{ role: 'user', parts: [{ text }] }],
+        contents: [{ role: 'user', parts: [{ text: promptText }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
