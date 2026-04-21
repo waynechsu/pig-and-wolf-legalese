@@ -38,7 +38,7 @@ const SCRIPT: Array<{ character: Character, text: string, translation?: string, 
   { character: 'DETECTIVE PIG', text: "You're someone who's unwelcome here." },
   { character: 'LAWYER PIG', text: "Ergo, I'm not inclined-yay to help oo-yay out-yay.", slowTtsText: "Ergo! I'm NOT in clined yay... to help ooh yay... owt yay!", normalTtsText: "Ergo! I'm not inclined-yay to help ooh-yay owt-yay!", translation: "Ergo, I'm not inclined to help you out." },
   { character: 'WOLF', text: "Come on! I have the right to an attorney!" },
-  { character: 'LAWYER PIG', text: "Erhaps-pay, ut-bay I don't ork-way o-pray ono-bay, okay?", slowTtsText: "Ur haps pay... utt bay I don't oark way... oh pray oh no bay! Okay?!", normalTtsText: "Urhaps-pay, utt-bay I don't oark-way oh-pray oh-no-bay! Okay?", translation: "Perhaps, but I don't work pro bono, okay?" },
+  { character: 'LAWYER PIG', text: "Erhaps-pay, ut-bay I don't ork-way o-pray ono-bay, okay?", slowTtsText: "Air haps pay... uhtt bay I don't oark way... oh pray oh no bay! Okay?!", normalTtsText: "Air-haps-pay, uhtt-bay I don't oark-way oh-pray oh-no-bay! Okay?", translation: "Perhaps, but I don't work pro bono, okay?" },
   { character: 'WOLF', text: "What?" },
   { character: 'DETECTIVE PIG', text: "She doesn't work for free." },
   { character: 'WOLF', text: "I'm confused. Why is she talking like that?" },
@@ -80,8 +80,8 @@ async function generateAudio() {
   });
   const ai = genAI as any;
 
-  const audioData: Record<string, string> = {};
   const outputPath = path.resolve(__dirname, '../src/data/audioData.json');
+  const audioData: Record<string, string> = fs.existsSync(outputPath) ? JSON.parse(fs.readFileSync(outputPath, 'utf8')) : {};
 
   console.log('Starting audio generation for', SCRIPT.length, 'lines...');
   
@@ -95,6 +95,10 @@ async function generateAudio() {
       for (const speed of speeds) {
         const id = `${line.character}:${line.text}:${speed}`;
         const spokenText = speed === 'slow' ? line.slowTtsText : line.normalTtsText;
+        if (audioData[id]) {
+          console.log(`Skipping line ${i + 1}/${SCRIPT.length}: [${line.character}] (${speed}) (already exists)`);
+          continue;
+        }
         console.log(`Generating line ${i + 1}/${SCRIPT.length}: [${line.character}] (${speed}) ${line.text}`);
         
         await generateSingleAudio(ai, id, spokenText!, VOICE_MAP[line.character as Character], audioData);
@@ -102,6 +106,10 @@ async function generateAudio() {
     } else {
       // Single version for others
       const id = `${line.character}:${line.text}`;
+      if (audioData[id]) {
+        console.log(`Skipping line ${i + 1}/${SCRIPT.length}: [${line.character}] (already exists)`);
+        continue;
+      }
       console.log(`Generating line ${i + 1}/${SCRIPT.length}: [${line.character}] ${line.text}`);
       await generateSingleAudio(ai, id, line.text, VOICE_MAP[line.character as Character], audioData);
     }
