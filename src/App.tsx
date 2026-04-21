@@ -244,14 +244,15 @@ export default function App() {
       source.start();
       
       // Karaoke Highlighting
-      const duration = source.buffer?.duration || 0;
+      const normalDuration = source.buffer?.duration || 0;
+      const actualDuration = normalDuration / rate;
       const words = line.text.split(/\s+/);
       const startTime = ctx.currentTime;
 
       const updateHighlight = () => {
         const elapsed = ctx.currentTime - startTime;
-        if (elapsed < duration) {
-          const progress = elapsed / duration;
+        if (elapsed < actualDuration) {
+          const progress = elapsed / actualDuration;
           const wordIndex = Math.floor(progress * words.length);
           setHighlightWordIndex(wordIndex);
           requestAnimationFrame(updateHighlight);
