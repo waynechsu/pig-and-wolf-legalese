@@ -247,10 +247,12 @@ export default function App() {
       const normalDuration = source.buffer?.duration || 0;
       const actualDuration = normalDuration / rate;
       const words = line.text.split(/\s+/);
-      const startTime = ctx.currentTime;
+      const audioCtx = audioContextRef.current;
+      const startTime = audioCtx ? audioCtx.currentTime : 0;
 
       const updateHighlight = () => {
-        const elapsed = ctx.currentTime - startTime;
+        if (!audioCtx) return;
+        const elapsed = audioCtx.currentTime - startTime;
         if (elapsed < actualDuration) {
           const progress = elapsed / actualDuration;
           const wordIndex = Math.floor(progress * words.length);
@@ -260,7 +262,9 @@ export default function App() {
           setHighlightWordIndex(-1);
         }
       };
-      requestAnimationFrame(updateHighlight);
+      if (audioCtx) {
+        requestAnimationFrame(updateHighlight);
+      }
     }
   }, [isAudioEnabled, lawyerSpeed, isPlaying, isInteractiveMode, isQuizMode, activeScript]);
 
